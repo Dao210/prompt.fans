@@ -4,9 +4,10 @@ import {
   Search, Copy, Check, Zap, Filter, 
   Heart, Settings, Sparkles, Send, 
   Loader2, Play, Menu, X, Code, PenTool,
-  Image as ImageIcon, BookOpen, Rocket, RefreshCw
+  Image as ImageIcon, BookOpen, Rocket
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import './style.css';
 
 // --- Data Models ---
 
@@ -108,20 +109,82 @@ const MOCK_PROMPTS: BananaPrompt[] = [
 
 // --- Services ---
 
-const StorageService = {
-  getFavorites: (): string[] => {
-    try {
-      return JSON.parse(localStorage.getItem('banana_favorites') || '[]');
-    } catch { return []; }
+// Hybrid Adapter: Handles both Browser (Dev) and Chrome Extension (Prod) environments
+const EnvAdapter = {
+  isExtension: () => typeof chrome !== 'undefined' && !!chrome.storage,
+  
+  getStorage: async (key: string, defaultVal: any) => {
+    if (EnvAdapter.isExtension()) {
+      return new Promise((resolve) => {
+        chrome.storage.sync.get([key], (result) => {
+          resolve(result[key] !== undefined ? result[key] : defaultVal);
+        });
+      });
+    } else {
+      // LocalStorage fallback
+      const val = localStorage.getItem(key);
+      return Promise.resolve(val ? JSON.parse(val) : defaultVal);
+    }
   },
-  toggleFavorite: (id: string): string[] => {
-    const favs = StorageService.getFavorites();
+
+  setStorage: async (key: string, value: any) => {
+    if (EnvAdapter.isExtension()) {
+      return new Promise<void>((resolve) => {
+        chrome.storage.sync.set({ [key]: value }, () => resolve());
+      });
+    } else {
+      localStorage.setItem(key, JSON.stringify(value));
+      return Promise.resolve();
+    }
+  },
+
+  injectScript: async (text: string) => {
+    if (EnvAdapter.isExtension()) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab.id) {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: (code) => {
+            // Try to find the active element or specific textareas
+            const el = document.activeElement as HTMLTextAreaElement | HTMLInputElement;
+            if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+              const start = el.selectionStart;
+              const end = el.selectionEnd;
+              const text = el.value;
+              const before = text.substring(0, start || 0);
+              const after = text.substring(end || 0);
+              el.value = before + code + after;
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+            } else {
+              alert('Banana Prompts: Please click inside a text input field first!');
+            }
+          },
+          args: [text]
+        });
+      }
+    } else {
+      console.log("Mock Injection:", text);
+      alert(`[Dev Mode] Would inject: "${text.substring(0, 30)}..."`);
+    }
+  }
+};
+
+const StorageService = {
+  getFavorites: async (): Promise<string[]> => {
+    return await EnvAdapter.getStorage('banana_favorites', []);
+  },
+  toggleFavorite: async (id: string): Promise<string[]> => {
+    const favs = await StorageService.getFavorites();
     const newFavs = favs.includes(id) ? favs.filter(f => f !== id) : [...favs, id];
-    localStorage.setItem('banana_favorites', JSON.stringify(newFavs));
+    await EnvAdapter.setStorage('banana_favorites', newFavs);
     return newFavs;
   },
-  getApiKey: (): string => localStorage.getItem('banana_api_key') || '',
-  setApiKey: (key: string) => localStorage.setItem('banana_api_key', key),
+  getApiKey: async (): Promise<string> => {
+    return await EnvAdapter.getStorage('banana_api_key', '');
+  },
+  setApiKey: async (key: string) => {
+    await EnvAdapter.setStorage('banana_api_key', key);
+  },
 };
 
 // --- Components ---
@@ -258,325 +321,4 @@ const SettingsModal = ({ isOpen, onClose, apiKey, onSave }: any) => {
           </h2>
           <button onClick={onClose} className="hover:bg-brand-black hover:text-white p-1 rounded transition-colors">
             <X size={20} />
-          </button>
-        </div>
-        <div className="p-6">
-          <label className="block text-sm font-bold mb-2">Gemini API Key</label>
-          <input 
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="AIzaSy..."
-            className="w-full p-3 bg-slate-50 border-2 border-brand-black rounded-lg font-mono text-sm focus:outline-none focus:ring-4 focus:ring-brand-yellow/50 transition-all"
-          />
-          <p className="text-xs text-slate-500 mt-2 mb-6 leading-relaxed">
-            Required for the <strong>Banana Peeler</strong> (Prompt Optimizer). 
-            <br/>Your key is stored locally in your browser and never sent to our servers.
-          </p>
-          <button 
-            onClick={() => { onSave(key); onClose(); }}
-            className="w-full py-3 bg-brand-black text-white font-bold rounded-lg shadow-neo-sm hover:shadow-neo hover:-translate-y-0.5 active:shadow-none active:translate-y-[2px] transition-all"
-          >
-            Save & Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Banana Peeler Component ---
-
-const BananaPeeler = ({ onPeel, loading }: { onPeel: (input: string) => void, loading: boolean }) => {
-  const [input, setInput] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) onPeel(input);
-  };
-
-  return (
-    <div className="mb-8 relative z-10">
-      <div className="bg-brand-black p-1.5 rounded-2xl shadow-neo">
-        <div className="bg-white rounded-xl p-1 flex items-center border-2 border-transparent">
-          <div className="pl-3 pr-2 text-brand-yellow">
-            <Sparkles size={24} className="fill-brand-yellow text-brand-black" />
-          </div>
-          <form onSubmit={handleSubmit} className="flex-1 flex">
-            <input 
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Magic Input: 'Write a python script to scrape twitter'..."
-              className="w-full py-3 px-2 text-sm font-medium focus:outline-none placeholder:text-slate-400"
-              disabled={loading}
-            />
-            <button 
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="m-1 px-4 bg-brand-yellow border-2 border-brand-black rounded-lg font-bold text-sm hover:bg-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-brand-black"
-            >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : <><span className="hidden sm:inline">Peel It</span><Send size={14} /></>}
-            </button>
-          </form>
-        </div>
-      </div>
-      <div className="mt-2 flex justify-between px-2 items-center">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-          <Zap size={10} className="fill-slate-400" />
-          Powered by Gemini 2.5 Flash
-        </span>
-      </div>
-    </div>
-  );
-};
-
-// --- Main App ---
-
-const App = () => {
-  const [prompts, setPrompts] = useState<BananaPrompt[]>(MOCK_PROMPTS);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [toast, setToast] = useState<ToastState>({ visible: false, message: '', type: 'info' });
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [viewMode, setViewMode] = useState<'market' | 'favorites'>('market');
-
-  // Load initial data
-  useEffect(() => {
-    const key = StorageService.getApiKey();
-    setApiKey(key);
-    const favs = StorageService.getFavorites();
-    setPrompts(prev => prev.map(p => ({ ...p, isFavorite: favs.includes(p.id) })));
-  }, []);
-
-  const showToast = (message: string, type: ToastState['type'] = 'info') => {
-    setToast({ visible: true, message, type });
-    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
-  };
-
-  const handleToggleFav = (id: string) => {
-    const newFavs = StorageService.toggleFavorite(id);
-    setPrompts(prev => prev.map(p => p.id === id ? { ...p, isFavorite: newFavs.includes(id) } : p));
-  };
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showToast('Copied to clipboard!', 'success');
-  };
-
-  const handleInject = (text: string) => {
-    // In a real extension, we would use:
-    // chrome.tabs.query({active: true, currentWindow: true}, (tabs) => { ... })
-    // chrome.scripting.executeScript(...)
-    console.log("Injecting:", text);
-    showToast('✨ Magic Filled to active tab!', 'success');
-  };
-
-  const handleBananaPeel = async (input: string) => {
-    if (!apiKey) {
-      setShowSettings(true);
-      showToast('Please set your Gemini API Key first.', 'info');
-      return;
-    }
-
-    setIsOptimizing(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: input,
-        config: {
-          systemInstruction: "你是一位提示词工程专家（Prompt Engineer）。你的任务是将用户模糊、简单的指令转化为结构清晰、包含上下文、任务目标、约束条件的专业 Prompt。请直接输出优化后的 Prompt，不要包含解释。",
-        }
-      });
-      
-      const optimizedText = response.text;
-      
-      if (optimizedText) {
-        const newPrompt: BananaPrompt = {
-          id: Date.now().toString(),
-          title: `Optimized: ${input.substring(0, 15)}...`,
-          description: 'Freshly peeled by Gemini 🍌',
-          content: optimizedText.trim(),
-          tags: ['Gemini', 'Optimized'],
-          category: 'Productivity',
-          tool: 'Gemini',
-          author: 'You',
-          likes: 0,
-          isFavorite: false
-        };
-        
-        setPrompts(prev => [newPrompt, ...prev]);
-        showToast('Prompt optimized successfully!', 'success');
-      }
-    } catch (error: any) {
-      console.error(error);
-      const msg = error.message?.includes('API key') ? 'Invalid API Key' : 'Optimization failed';
-      showToast(msg, 'error');
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  const filteredPrompts = useMemo(() => {
-    let data = prompts;
-    
-    if (viewMode === 'favorites') {
-      data = data.filter(p => p.isFavorite);
-    } else {
-      // Marketplace logic
-      if (activeCategory !== 'All') {
-        data = data.filter(p => p.category === activeCategory);
-      }
-    }
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      data = data.filter(p => 
-        p.title.toLowerCase().includes(q) || 
-        p.content.toLowerCase().includes(q) ||
-        p.tags.some(t => t.toLowerCase().includes(q))
-      );
-    }
-
-    return data;
-  }, [prompts, viewMode, activeCategory, searchQuery]);
-
-  const categories = [
-    { id: 'All', icon: Rocket },
-    { id: 'Coding', icon: Code },
-    { id: 'Writing', icon: PenTool },
-    { id: 'Art', icon: ImageIcon },
-    { id: 'Academic', icon: BookOpen },
-    { id: 'Marketing', icon: Zap },
-  ];
-
-  return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-yellow selection:text-brand-black">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-brand-yellow border-b-2 border-brand-black shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => { setViewMode('market'); setActiveCategory('All'); }}>
-            <div className="bg-brand-black p-1.5 rounded-lg border-2 border-brand-black shadow-none group-hover:rotate-6 transition-transform">
-              <span className="text-xl leading-none">🍌</span>
-            </div>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-brand-black">
-              prompt.fans
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => { setViewMode(viewMode === 'market' ? 'favorites' : 'market'); setActiveCategory('All'); }}
-              className={`p-2 rounded-lg border-2 border-brand-black transition-all active:translate-y-[2px] active:shadow-none ${viewMode === 'favorites' ? 'bg-brand-black text-brand-yellow shadow-inner' : 'bg-white hover:bg-white shadow-neo-sm'}`}
-              title="My Favorites"
-            >
-              <Heart size={20} className={viewMode === 'favorites' ? 'fill-brand-yellow' : ''} />
-            </button>
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="p-2 rounded-lg border-2 border-brand-black bg-white hover:bg-white shadow-neo-sm active:translate-y-[2px] active:shadow-none transition-all"
-            >
-              <Settings size={20} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-grow px-4 py-6 max-w-5xl mx-auto w-full">
-        
-        {viewMode === 'market' && (
-          <>
-            {/* Hero / Peeler Section */}
-            <section className="max-w-2xl mx-auto text-center mb-8">
-              <h2 className="font-display text-3xl font-black mb-2 text-brand-black">Stop staring at a blank cursor.</h2>
-              <p className="text-slate-600 font-medium mb-6">Peel a fresh prompt or explore the marketplace.</p>
-              <BananaPeeler onPeel={handleBananaPeel} loading={isOptimizing} />
-            </section>
-
-            {/* Filter Bar */}
-            <section className="mb-6 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
-              <div className="flex gap-3 min-w-max">
-                {categories.map(cat => (
-                  <CategoryPill 
-                    key={cat.id} 
-                    label={cat.id} 
-                    icon={cat.icon}
-                    active={activeCategory === cat.id} 
-                    onClick={() => setActiveCategory(cat.id)} 
-                  />
-                ))}
-              </div>
-            </section>
-          </>
-        )}
-
-        {viewMode === 'favorites' && (
-           <div className="mb-8 flex items-center gap-4 border-b-2 border-brand-black pb-4">
-             <div className="bg-red-500 text-white p-3 rounded-xl border-2 border-brand-black shadow-neo">
-               <Heart size={28} className="fill-white" />
-             </div>
-             <div>
-               <h2 className="font-display text-3xl font-black">Your Stash</h2>
-               <p className="text-sm font-medium text-slate-600">You have saved {filteredPrompts.length} prompts.</p>
-             </div>
-           </div>
-        )}
-
-        {/* Search Bar (Always Visible) */}
-        <div className="relative mb-8">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-            <Search size={20} className="text-slate-400" />
-          </div>
-          <input 
-            type="text"
-            placeholder={viewMode === 'favorites' ? "Search within favorites..." : "Search for 'Code Review', 'SEO', 'Midjourney'..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border-2 border-brand-black rounded-xl shadow-neo font-bold text-lg focus:outline-none focus:shadow-neo-lg focus:-translate-y-0.5 transition-all placeholder:font-normal placeholder:text-slate-300"
-          />
-        </div>
-
-        {/* Content Grid */}
-        {filteredPrompts.length > 0 ? (
-          <div className="masonry-grid pb-12">
-            {filteredPrompts.map(prompt => (
-              <PromptCard 
-                key={prompt.id} 
-                prompt={prompt} 
-                onCopy={handleCopy} 
-                onToggleFav={handleToggleFav}
-                onInject={handleInject}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 opacity-80">
-            <Filter size={64} className="mb-4 text-slate-300" />
-            <p className="font-display text-xl font-bold text-brand-black">No prompts found.</p>
-            <p className="font-medium">Try adjusting your search or filters.</p>
-            {viewMode === 'favorites' && (
-              <button onClick={() => setViewMode('market')} className="mt-6 px-6 py-2 bg-brand-yellow border-2 border-brand-black rounded-lg font-bold text-brand-black shadow-neo-sm hover:-translate-y-0.5 transition-all">
-                Go to Marketplace
-              </button>
-            )}
-          </div>
-        )}
-      </main>
-
-      <SettingsModal 
-        isOpen={showSettings} 
-        onClose={() => setShowSettings(false)} 
-        apiKey={apiKey}
-        onSave={(k: string) => { StorageService.setApiKey(k); setApiKey(k); showToast('API Key saved locally', 'success'); }}
-      />
-      
-      <Toast {...toast} />
-    </div>
-  );
-};
-
-const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+          
