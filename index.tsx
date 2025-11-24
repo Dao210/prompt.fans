@@ -1,125 +1,155 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, Copy, Check, Heart, Menu, Code, PenTool, TrendingUp, Zap, BookOpen, Hash } from 'lucide-react';
+import { Search, Copy, Check, Menu, Zap, Filter, Github, Plus, Command } from 'lucide-react';
 
 // --- Types ---
 interface Prompt {
   id: string;
   title: string;
   description: string;
-  content: string;
-  category: 'Coding' | 'Writing' | 'Marketing' | 'Art' | 'Productivity';
+  content: string; // The full prompt
+  tool: 'ChatGPT' | 'Midjourney' | 'Claude' | 'Stable Diffusion';
+  category: 'Coding' | 'Marketing' | 'Writing' | 'Art' | 'Productivity';
   tags: string[];
-  likes: number;
 }
 
-// --- Mock Data ---
+// --- Mock Data (Expanded for realism) ---
 const MOCK_PROMPTS: Prompt[] = [
   {
     id: '1',
-    title: 'React Component Generator',
-    description: 'Create clean, functional React components with Tailwind CSS.',
-    content: 'Act as a senior frontend engineer. Create a [Component Name] using React and Tailwind CSS. Ensure it is responsive, accessible (ARIA), and handles props for [Props List].',
+    title: 'Senior React Engineer Persona',
+    description: 'Forces the AI to adopt a strict, best-practice focused coding style.',
+    content: 'Act as a Principal Frontend Engineer at a FAANG company. I will provide you with React/TypeScript code snippets. You must review them for: 1. Performance bottlenecks (re-renders), 2. Accessibility (ARIA), 3. Maintainability (SOLID principles). Do not be polite; be concise and technical. Provide refactored code blocks.',
+    tool: 'ChatGPT',
     category: 'Coding',
-    tags: ['React', 'Frontend', 'Tailwind'],
-    likes: 1240
+    tags: ['React', 'Engineering', 'Code Review']
   },
   {
     id: '2',
-    title: 'Professional Email Polisher',
-    description: 'Turn rough notes into professional business emails.',
-    content: 'Rewrite the following draft email to be more professional, concise, and polite. Maintain a confident tone. Draft: "[Insert Draft]"',
-    category: 'Writing',
-    tags: ['Business', 'Email', 'Communication'],
-    likes: 890
+    title: 'Cyberpunk Cityscape V5',
+    description: 'High fidelity Midjourney prompt for neon aesthetics.',
+    content: 'futuristic tokyo city street level, heavy rain, neon lights, reflection on wet asphalt, cyberpunk aesthetic, blade runner style, volumetric lighting, 8k resolution, photorealistic, cinematic shot --ar 16:9 --v 5.2 --s 750',
+    tool: 'Midjourney',
+    category: 'Art',
+    tags: ['Sci-fi', 'Atmospheric', '3D']
   },
   {
     id: '3',
-    title: 'SEO Blog Post Outliner',
-    description: 'Generate structured outlines for SEO-optimized articles.',
-    content: 'Create a comprehensive blog post outline for the keyword "[Keyword]". Include H2 and H3 headings, bullet points for key arguments, and suggest a meta description.',
+    title: 'Viral Twitter Thread Hook',
+    description: 'Generate hooks that stop the scroll.',
+    content: 'Write 5 variations of a Twitter thread hook about [TOPIC]. The hooks should be punchy, controversial, or promise high value. Use the AIDA framework. Keep each hook under 280 characters. Do not use hashtags.',
+    tool: 'ChatGPT',
     category: 'Marketing',
-    tags: ['SEO', 'Content', 'Blogging'],
-    likes: 650
+    tags: ['Social Media', 'Copywriting']
   },
   {
     id: '4',
-    title: 'Code Refactoring Expert',
-    description: 'Optimize your code for performance and readability.',
-    content: 'Review the following code snippet. Identify performance bottlenecks, potential bugs, and readability issues. Suggest a refactored version with comments explaining changes. Code: [Insert Code]',
+    title: 'SQL Query Optimizer',
+    description: 'Analyze and fix slow database queries.',
+    content: 'Here is a SQL query running on PostgreSQL. Explain the query plan it likely generates, identify why it is slow (e.g., missing indexes, full table scans), and rewrite it for optimal performance.',
+    tool: 'ChatGPT',
     category: 'Coding',
-    tags: ['Refactoring', 'Clean Code'],
-    likes: 1100
+    tags: ['Database', 'Backend', 'SQL']
   },
   {
     id: '5',
-    title: 'Midjourney Photorealistic',
-    description: 'Create stunning photorealistic prompts for image generation.',
-    content: 'Generate a Midjourney prompt for a photorealistic image of [Subject]. Include details about lighting (e.g., golden hour, softbox), camera lens (e.g., 85mm, f/1.8), and texture. Aspect ratio --ar 16:9.',
-    category: 'Art',
-    tags: ['Midjourney', 'AI Art', 'Photography'],
-    likes: 2300
+    title: 'Email Professionalizer',
+    description: 'Turn angry thoughts into corporate speak.',
+    content: 'Rewrite the following text to be professional, polite, and firm. Use corporate language but avoid excessive jargon. Tone: Collaborative but setting boundaries. Input: "[INPUT TEXT]"',
+    tool: 'Claude',
+    category: 'Writing',
+    tags: ['Business', 'Email', 'Communication']
   },
   {
     id: '6',
-    title: 'Meeting Summarizer',
-    description: 'Extract action items and key decisions from transcripts.',
-    content: 'Analyze the following meeting transcript. Summarize the key discussion points, list all action items assigned to specific people, and highlight any deadlines.',
-    category: 'Productivity',
-    tags: ['Meeting', 'Summary', 'Work'],
-    likes: 780
+    title: 'Analog Film Photography',
+    description: 'Simulate Kodak Portra 400 style.',
+    content: 'portrait of a woman in a coffee shop, looking out the window, natural window light, shot on Kodak Portra 400, 35mm lens, f/1.8, film grain, vintage feel, candid moment --ar 2:3',
+    tool: 'Midjourney',
+    category: 'Art',
+    tags: ['Photography', 'Vintage', 'Portrait']
   },
   {
     id: '7',
-    title: 'Instagram Caption Creator',
-    description: 'Engaging captions with emojis and hashtags.',
-    content: 'Write 3 variations of an Instagram caption for a photo about [Topic]. Style: Fun and engaging. Include relevant emojis and a set of 15 niche hashtags.',
-    category: 'Marketing',
-    tags: ['Social Media', 'Instagram'],
-    likes: 540
+    title: 'UX Case Study Generator',
+    description: 'Structure for a portfolio case study.',
+    content: 'Create a comprehensive outline for a UX case study about a [APP IDEA]. Structure it with: 1. The Problem, 2. User Research (create 2 personas), 3. The Solution, 4. Usability Testing Results, 5. Lessons Learned.',
+    tool: 'Claude',
+    category: 'Productivity',
+    tags: ['Design', 'UX', 'Job Hunt']
   },
   {
     id: '8',
-    title: 'Complex Concept Explainer',
-    description: 'Explain difficult topics like I am 5 years old.',
-    content: 'Explain the concept of [Topic] to a 5-year-old using simple analogies, short sentences, and avoiding jargon.',
-    category: 'Writing',
-    tags: ['Education', 'Learning'],
-    likes: 920
+    title: 'Youtube Script Outline',
+    description: 'High retention video structure.',
+    content: 'Create a 10-minute YouTube video script outline for a video titled "[TITLE]". Use the following structure: 1. The Hook (0:00-0:45), 2. The Setup, 3. The Meat (3 key points), 4. The Climax, 5. CTA.',
+    tool: 'ChatGPT',
+    category: 'Marketing',
+    tags: ['Video', 'Content Creation']
+  },
+  {
+    id: '9',
+    title: 'Stable Diffusion Realistic',
+    description: 'Base prompt for realistic human textures.',
+    content: 'raw photo, close up portrait, (high detailed skin:1.2), 8k uhd, dslr, soft lighting, high quality, volumetric fog, candice swanepoel, <lora:epi_noiseoffset:1>',
+    tool: 'Stable Diffusion',
+    category: 'Art',
+    tags: ['Realistic', 'Portrait']
   }
 ];
-
-const CATEGORIES = ['All', 'Coding', 'Writing', 'Marketing', 'Art', 'Productivity'];
 
 // --- Components ---
 
 const Toast = ({ message, visible }: { message: string; visible: boolean }) => {
   if (!visible) return null;
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50 text-sm font-medium animate-fade-in-up">
-      <Check size={16} className="text-yellow-400" />
-      {message}
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in-up">
+      <div className="bg-brand-black text-white px-6 py-3 rounded-full shadow-hard flex items-center gap-3 font-medium border-2 border-white">
+        <div className="bg-brand-yellow text-brand-black rounded-full p-1">
+          <Check size={14} strokeWidth={4} />
+        </div>
+        {message}
+      </div>
     </div>
   );
 };
 
 const Header = () => (
-  <div className="sticky top-0 z-40 bg-yellow-400 border-b-2 border-slate-900 px-4 py-3 shadow-sm">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 select-none">
-        <div className="bg-slate-900 text-yellow-400 p-1.5 rounded-lg transform -rotate-6">
-          <Zap size={20} fill="currentColor" />
+  <header className="sticky top-0 z-40 bg-brand-yellow border-b-2 border-brand-black px-4 py-3">
+    <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <div className="flex items-center gap-2 group cursor-pointer">
+        <div className="bg-white border-2 border-brand-black p-1.5 rounded-lg shadow-hard-sm group-hover:translate-x-[1px] group-hover:translate-y-[1px] group-hover:shadow-none transition-all">
+          <Zap size={20} className="text-brand-black fill-brand-yellow" />
         </div>
-        <h1 className="text-xl font-black tracking-tight text-slate-900">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-brand-black">
           prompt.fans
         </h1>
       </div>
-      <button className="p-2 hover:bg-yellow-500 rounded-full transition-colors text-slate-900">
-        <Menu size={20} />
-      </button>
+      
+      <div className="flex items-center gap-2">
+        <button className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border-2 border-brand-black rounded-lg font-bold text-sm shadow-hard-sm hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+          <Plus size={16} />
+          <span>Submit</span>
+        </button>
+        <button className="p-2 bg-brand-black text-white rounded-lg hover:bg-slate-800 transition-colors">
+          <Menu size={20} />
+        </button>
+      </div>
     </div>
-  </div>
+  </header>
 );
+
+const TagPill = ({ text, type = 'default' }: { text: string, type?: 'tool' | 'default' }) => {
+  const styles = type === 'tool' 
+    ? 'bg-blue-100 text-blue-800 border-blue-200'
+    : 'bg-slate-100 text-slate-600 border-slate-200';
+    
+  return (
+    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border uppercase tracking-wider ${styles}`}>
+      {text}
+    </span>
+  );
+};
 
 const CategoryFilter = ({ 
   selected, 
@@ -128,31 +158,21 @@ const CategoryFilter = ({
   selected: string; 
   onSelect: (c: string) => void 
 }) => {
-  const getIcon = (cat: string) => {
-    switch (cat) {
-      case 'Coding': return <Code size={14} />;
-      case 'Writing': return <PenTool size={14} />;
-      case 'Marketing': return <TrendingUp size={14} />;
-      case 'Art': return <BookOpen size={14} />; // Placeholder
-      case 'Productivity': return <Zap size={14} />;
-      default: return <Hash size={14} />;
-    }
-  };
-
+  const categories = ['All', 'Coding', 'Art', 'Writing', 'Marketing', 'Productivity'];
+  
   return (
-    <div className="flex gap-2 overflow-x-auto px-4 py-3 no-scrollbar bg-slate-50 border-b border-slate-200">
-      {CATEGORIES.map((cat) => (
+    <div className="flex gap-2 overflow-x-auto pb-4 pt-2 no-scrollbar mask-gradient">
+      {categories.map((cat) => (
         <button
           key={cat}
           onClick={() => onSelect(cat)}
           className={`
-            flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all border-2
+            px-5 py-2 rounded-full text-sm font-bold border-2 transition-all whitespace-nowrap
             ${selected === cat 
-              ? 'bg-slate-900 text-white border-slate-900' 
-              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400 hover:text-slate-900'}
+              ? 'bg-brand-black text-brand-yellow border-brand-black shadow-hard-sm' 
+              : 'bg-white text-brand-black border-brand-black hover:bg-yellow-50'}
           `}
         >
-          {cat !== 'All' && getIcon(cat)}
           {cat}
         </button>
       ))}
@@ -163,60 +183,52 @@ const CategoryFilter = ({
 interface PromptCardProps {
   prompt: Prompt;
   onCopy: (content: string) => void;
-  onToggleFav: (id: string) => void;
-  isFav: boolean;
 }
 
-const PromptCard: React.FC<PromptCardProps> = ({ 
-  prompt, 
-  onCopy, 
-  onToggleFav, 
-  isFav 
-}) => {
+const PromptCard: React.FC<PromptCardProps> = ({ prompt, onCopy }) => {
   return (
-    <div className="group bg-white rounded-xl border-2 border-slate-100 hover:border-slate-900 hover:shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all duration-200 flex flex-col h-full overflow-hidden">
-      <div className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-2">
-          <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-800 uppercase tracking-wider">
-            {prompt.category}
-          </span>
-          <button 
-            onClick={() => onToggleFav(prompt.id)}
-            className={`p-1 rounded-full transition-transform active:scale-90 ${isFav ? 'text-red-500' : 'text-slate-300 hover:text-slate-500'}`}
-          >
-            <Heart size={18} fill={isFav ? "currentColor" : "none"} />
-          </button>
-        </div>
+    <div className="break-inside-avoid mb-4">
+      <div className="group relative flex flex-col bg-white border-2 border-brand-black rounded-xl p-0 transition-all hover:-translate-y-1 hover:shadow-hard">
         
-        <h3 className="text-lg font-bold text-slate-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
-          {prompt.title}
-        </h3>
-        
-        <p className="text-slate-500 text-sm mb-4 line-clamp-2">
-          {prompt.description}
-        </p>
+        {/* Card Body */}
+        <div className="p-5 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <TagPill text={prompt.tool} type="tool" />
+            <div className="flex gap-1">
+               {prompt.tags.slice(0, 1).map(t => <TagPill key={t} text={t} />)}
+            </div>
+          </div>
 
-        <div className="mt-auto">
-          <div className="bg-slate-50 rounded-lg p-2 mb-3 border border-slate-100 group-hover:border-slate-200 transition-colors">
-            <code className="text-xs text-slate-600 font-mono line-clamp-3 leading-relaxed">
+          <div>
+            <h3 className="font-display text-xl font-bold text-brand-black leading-tight mb-1">
+              {prompt.title}
+            </h3>
+            <p className="text-sm text-slate-500 font-medium leading-snug">
+              {prompt.description}
+            </p>
+          </div>
+
+          {/* Prompt Preview Area */}
+          <div className="relative mt-2 bg-slate-50 rounded-lg border-2 border-slate-100 p-3 group-hover:border-brand-yellow transition-colors">
+            <code className="block font-mono text-xs text-slate-700 line-clamp-4 leading-relaxed">
               {prompt.content}
             </code>
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-50/90 to-transparent pointer-events-none" />
           </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1 flex-wrap">
-              {prompt.tags.slice(0, 2).map(tag => (
-                <span key={tag} className="text-[10px] text-slate-400 font-medium">#{tag}</span>
-              ))}
-            </div>
-            <button
-              onClick={() => onCopy(prompt.content)}
-              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
-            >
-              <Copy size={14} />
-              Copy
-            </button>
-          </div>
+        </div>
+
+        {/* Card Footer / Action */}
+        <div className="border-t-2 border-brand-black p-3 bg-brand-yellow/10 rounded-b-lg flex justify-between items-center group-hover:bg-brand-yellow transition-colors">
+          <span className="text-xs font-bold text-brand-black opacity-60 group-hover:opacity-100 uppercase tracking-wide">
+            {prompt.category}
+          </span>
+          <button
+            onClick={() => onCopy(prompt.content)}
+            className="flex items-center gap-1.5 bg-white border-2 border-brand-black px-3 py-1.5 rounded-lg text-xs font-bold shadow-[2px_2px_0px_0px_#0F172A] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+          >
+            <Copy size={14} />
+            Copy Prompt
+          </button>
         </div>
       </div>
     </div>
@@ -226,91 +238,82 @@ const PromptCard: React.FC<PromptCardProps> = ({
 const App = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ show: boolean; msg: string }>({ show: false, msg: '' });
-
-  // Load favorites from local storage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem('prompt.fans-favs');
-    if (stored) {
-      setFavorites(new Set(JSON.parse(stored)));
-    }
-  }, []);
-
-  const toggleFavorite = (id: string) => {
-    const next = new Set(favorites);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setFavorites(next);
-    localStorage.setItem('prompt.fans-favs', JSON.stringify(Array.from(next)));
-  };
 
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     setToast({ show: true, msg: 'Copied to clipboard!' });
-    setTimeout(() => setToast({ show: false, msg: '' }), 2000);
+    setTimeout(() => setToast({ show: false, msg: '' }), 2500);
   };
 
   const filteredPrompts = useMemo(() => {
     return MOCK_PROMPTS.filter(p => {
       const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
-      const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = 
+        p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        p.tool.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col text-slate-900 pb-8">
+    <div className="min-h-screen flex flex-col text-brand-black font-sans selection:bg-brand-yellow selection:text-brand-black">
       <Header />
       
-      {/* Search Area */}
-      <div className="px-4 pt-4 pb-2 bg-white">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-yellow-500 transition-colors">
-            <Search size={18} />
+      <main className="flex-grow max-w-6xl mx-auto w-full px-4 py-6">
+        
+        {/* Search & Intro */}
+        <div className="mb-8 text-center max-w-2xl mx-auto">
+          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+            Find the best prompts <br/> for your workflow.
+          </h2>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-brand-black/50">
+              <Search size={20} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search prompts (e.g., 'React', 'Midjourney', 'SEO')..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border-2 border-brand-black rounded-xl text-lg font-medium shadow-hard focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-none transition-all placeholder:text-slate-400"
+            />
+            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                <div className="hidden sm:flex items-center gap-1 bg-slate-100 px-2 py-1 rounded border border-slate-300">
+                    <Command size={12} className="text-slate-500" />
+                    <span className="text-xs font-bold text-slate-500">K</span>
+                </div>
+            </div>
           </div>
-          <input
-            type="text"
-            placeholder="Search for prompts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:border-yellow-400 focus:bg-white transition-all placeholder:text-slate-400"
-          />
         </div>
-      </div>
 
-      <CategoryFilter selected={activeCategory} onSelect={setActiveCategory} />
+        {/* Filter */}
+        <div className="mb-6 sticky top-[72px] z-30 bg-[#FFFBEB]/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-brand-black/10 md:static md:bg-transparent md:border-none md:p-0">
+          <CategoryFilter selected={activeCategory} onSelect={setActiveCategory} />
+        </div>
 
-      {/* Content Area */}
-      <main className="px-4 py-4 flex-grow">
+        {/* Masonry Grid */}
         {filteredPrompts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="masonry-grid pb-20">
             {filteredPrompts.map(prompt => (
               <PromptCard 
                 key={prompt.id} 
                 prompt={prompt} 
                 onCopy={handleCopy}
-                onToggleFav={toggleFavorite}
-                isFav={favorites.has(prompt.id)}
               />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <div className="bg-slate-100 p-4 rounded-full mb-4">
-              <Search size={32} />
+            <div className="bg-white border-2 border-slate-200 p-6 rounded-2xl mb-4 rotate-3">
+              <Search size={48} className="text-brand-yellow" />
             </div>
-            <p className="font-medium">No prompts found.</p>
-            <p className="text-sm">Try a different category or search term.</p>
+            <p className="font-display font-bold text-xl text-brand-black">No prompts found.</p>
+            <p className="text-sm">Try adjusting your search filters.</p>
           </div>
         )}
       </main>
-
-      {/* Extension Footer style */}
-      <footer className="text-center py-4 text-xs text-slate-400 border-t border-slate-100">
-        <p>© 2024 prompt.fans • Chrome Extension</p>
-      </footer>
 
       <Toast message={toast.msg} visible={toast.show} />
     </div>
