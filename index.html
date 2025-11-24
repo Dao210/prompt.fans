@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>prompt.fans</title>
+    <title>prompt.fans - Chrome Extension</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -16,13 +16,30 @@
             },
             colors: {
               brand: {
-                yellow: '#FACC15', // Banana yellow
-                black: '#0F172A',
+                yellow: '#FACC15', // Banana Yellow
+                black: '#0F172A',  // Slate 900
+                white: '#FFFFFF',
+                gray: '#F8FAFC',   // Slate 50
               }
             },
             boxShadow: {
-              'hard': '4px 4px 0px 0px #0F172A',
-              'hard-sm': '2px 2px 0px 0px #0F172A',
+              'neo': '5px 5px 0px 0px #0F172A',
+              'neo-sm': '3px 3px 0px 0px #0F172A',
+              'neo-lg': '8px 8px 0px 0px #0F172A',
+            },
+            animation: {
+              'bounce-slight': 'bounce-slight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both',
+              'fade-in': 'fadeIn 0.2s ease-out forwards',
+            },
+            keyframes: {
+              'bounce-slight': {
+                '0%': { transform: 'scale(0.95)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
             }
           }
         }
@@ -30,24 +47,24 @@
     </script>
     <style>
       body {
-        font-family: 'Inter', sans-serif;
-        background-color: #FFFBEB; /* Light yellow tint background */
+        background-color: #FFFBEB; /* Amber 50 */
+        color: #0F172A;
+        overflow-y: scroll;
       }
       
-      /* Hide scrollbar for Chrome, Safari and Opera */
+      /* Hide Scrollbar but keep functionality */
       .no-scrollbar::-webkit-scrollbar {
         display: none;
       }
-      /* Hide scrollbar for IE, Edge and Firefox */
       .no-scrollbar {
-        -ms-overflow-style: none;  /* IE and Edge */
-        scrollbar-width: none;  /* Firefox */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
-
-      /* Masonry Layout Utilities */
+      
+      /* CSS Columns Masonry */
       .masonry-grid {
         column-count: 1;
-        column-gap: 1rem;
+        column-gap: 1.5rem;
       }
       @media (min-width: 640px) {
         .masonry-grid {
@@ -61,19 +78,23 @@
       }
       .break-inside-avoid {
         break-inside: avoid;
+        margin-bottom: 1.5rem;
       }
     </style>
-  <script type="importmap">
+    <script type="importmap">
 {
   "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react": "https://esm.sh/react@19.0.0",
+    "react/jsx-runtime": "https://esm.sh/react@19.0.0/jsx-runtime",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.468.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>

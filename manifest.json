@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "prompt.fans - AI Prompt Manager",
+  "version": "1.0.0",
+  "description": "The ultimate side-panel prompt manager for ChatGPT, Claude, and Gemini.",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "action": {
+    "default_title": "Open prompt.fans"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
