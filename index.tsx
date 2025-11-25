@@ -9,6 +9,11 @@ import {
 import { GoogleGenAI } from "@google/genai";
 import './style.css';
 
+// Global type declarations for Chrome Extension API
+declare global {
+  const chrome: any;
+}
+
 // --- Data Models ---
 
 interface BananaPrompt {
@@ -312,6 +317,11 @@ const SettingsModal = ({ isOpen, onClose, apiKey, onSave }: any) => {
 
   if (!isOpen) return null;
 
+  const handleSave = () => {
+    onSave(key);
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-black/40 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white w-full max-w-md border-2 border-brand-black shadow-neo rounded-2xl overflow-hidden transform transition-all">
@@ -321,4 +331,292 @@ const SettingsModal = ({ isOpen, onClose, apiKey, onSave }: any) => {
           </h2>
           <button onClick={onClose} className="hover:bg-brand-black hover:text-white p-1 rounded transition-colors">
             <X size={20} />
-          
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold mb-2">
+              Gemini API Key
+            </label>
+            <input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="Enter your Gemini API key"
+              className="w-full px-3 py-2 border-2 border-brand-black rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Your API key is stored securely in Chrome storage. Never commit it to version control.
+            </p>
+          </div>
+        </div>
+        <div className="p-4 border-t-2 border-brand-black bg-brand-gray flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border-2 border-brand-black bg-white rounded-lg font-bold hover:bg-brand-yellow transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 px-4 py-2 bg-brand-black text-white rounded-lg font-bold hover:bg-slate-800 transition-all"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main App Component ---
+
+const App = () => {
+  const [prompts, setPrompts] = useState<BananaPrompt[]>(MOCK_PROMPTS);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [toast, setToast] = useState<ToastState>({ visible: false, message: '', type: 'info' });
+
+  // Load favorites on mount
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const favs = await StorageService.getFavorites();
+      setFavorites(favs);
+
+      // Update prompts with favorite status
+      setPrompts(prev => prev.map(p => ({
+        ...p,
+        isFavorite: favs.includes(p.id)
+      })));
+    };
+
+    const loadApiKey = async () => {
+      const key = await StorageService.getApiKey();
+      setApiKey(key);
+    };
+
+    loadFavorites();
+    loadApiKey();
+  }, []);
+
+  // Update prompts when favorites change
+  useEffect(() => {
+    setPrompts(prev => prev.map(p => ({
+      ...p,
+      isFavorite: favorites.includes(p.id)
+    })));
+  }, [favorites]);
+
+  const categories = useMemo(() => {
+    const cats = [...new Set(MOCK_PROMPTS.map(p => p.category))];
+    return ['All', ...cats];
+  }, []);
+
+  const filteredPrompts = useMemo(() => {
+    let filtered = prompts;
+
+    // Filter by favorites
+    if (showFavorites) {
+      filtered = filtered.filter(p => p.isFavorite);
+    }
+
+    // Filter by category
+    if (selectedCategory && selectedCategory !== 'All') {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.title.toLowerCase().includes(term) ||
+        p.description.toLowerCase().includes(term) ||
+        p.tags.some(tag => tag.toLowerCase().includes(term))
+      );
+    }
+
+    return filtered;
+  }, [prompts, selectedCategory, searchTerm, showFavorites]);
+
+  const showToastMessage = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ visible: true, message, type });
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+  };
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToastMessage('Copied to clipboard!', 'success');
+    } catch (err) {
+      showToastMessage('Failed to copy', 'error');
+    }
+  };
+
+  const handleToggleFavorite = async (id: string) => {
+    const newFavorites = await StorageService.toggleFavorite(id);
+    setFavorites(newFavorites);
+    showToastMessage(
+      newFavorites.includes(id) ? 'Added to favorites' : 'Removed from favorites',
+      'success'
+    );
+  };
+
+  const handleInject = (text: string) => {
+    EnvAdapter.injectScript(text);
+    showToastMessage('Magic Fill activated! Click in a text field.', 'info');
+  };
+
+  const handleSaveApiKey = async (key: string) => {
+    await StorageService.setApiKey(key);
+    setApiKey(key);
+    showToastMessage('API key saved successfully', 'success');
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory(null);
+    setSearchTerm('');
+    setShowFavorites(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-amber-50">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-amber-50 border-b-2 border-brand-black">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BananaIcon />
+              <h1 className="font-display text-2xl font-bold text-brand-black">Banana Prompts</h1>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 rounded-lg border-2 border-brand-black bg-white hover:bg-brand-yellow transition-all"
+              aria-label="Open settings"
+            >
+              <Settings size={18} />
+            </button>
+          </div>
+
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search prompts..."
+              className="w-full pl-10 pr-10 py-3 rounded-lg border-2 border-brand-black font-medium focus:outline-none focus:ring-2 focus:ring-brand-yellow"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-brand-black"
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+            <button
+              onClick={() => setShowFavorites(!showFavorites)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm whitespace-nowrap transition-all ${
+                showFavorites
+                  ? 'bg-red-100 text-red-800 border-red-800'
+                  : 'bg-white text-slate-600 border-slate-300 hover:bg-red-50'
+              }`}
+            >
+              <Heart size={14} className={showFavorites ? 'fill-current' : ''} />
+              Favorites
+            </button>
+            {categories.map(category => (
+              <CategoryPill
+                key={category}
+                label={category}
+                active={selectedCategory === category || (category === 'All' && !selectedCategory)}
+                onClick={() => setSelectedCategory(category === 'All' ? null : category)}
+              />
+            ))}
+            {(selectedCategory || showFavorites || searchTerm) && (
+              <button
+                onClick={clearFilters}
+                className="ml-auto px-3 py-2 text-xs font-bold text-slate-600 hover:text-brand-black"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="px-6 py-6">
+        {filteredPrompts.length === 0 ? (
+          <div className="text-center py-12">
+            <Filter size={48} className="mx-auto text-slate-300 mb-4" />
+            <p className="text-slate-500 font-medium">
+              {searchTerm ? 'No prompts match your search' : 'No prompts found'}
+            </p>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="mt-4 text-brand-black font-bold hover:text-slate-700"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="masonry-grid">
+            {filteredPrompts.map(prompt => (
+              <PromptCard
+                key={prompt.id}
+                prompt={prompt}
+                onCopy={handleCopy}
+                onToggleFav={handleToggleFavorite}
+                onInject={handleInject}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Footer stats */}
+      <footer className="px-6 py-4 border-t-2 border-brand-black bg-white">
+        <div className="flex justify-between text-sm text-slate-600 font-medium">
+          <span>{filteredPrompts.length} prompts</span>
+          <span>{favorites.length} favorites</span>
+        </div>
+      </footer>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        apiKey={apiKey}
+        onSave={handleSaveApiKey}
+      />
+
+      {/* Toast */}
+      <Toast {...toast} />
+    </div>
+  );
+}
+
+// Banana Icon Component
+const BananaIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" className="text-brand-yellow">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.19 0 2.34-.21 3.41-.6.3-.11.49-.4.49-.72 0-.43-.35-.78-.78-.78-.17 0-.33.06-.46.11-.83.27-1.69.39-2.66.39-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8c0 .81-.15 1.62-.44 2.39-.09.24.03.51.27.6.24.09.51-.03.6-.27.36-1 .55-2.05.55-3.12 0-5.52-4.48-10-10-10zm-3.5 5c-.83 0-1.5.67-1.5 1.5S7.67 10 8.5 10s1.5-.67 1.5-1.5S9.33 7 8.5 7zm7 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm-3.5 8c-2.33 0-4.31 1.46-5.11 3.5h10.22c-.8-2.04-2.78-3.5-5.11-3.5z"/>
+  </svg>
+);
+
+// Mount the app
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<App />);
+}
