@@ -11,9 +11,16 @@ export interface BananaPrompt {
   tags: string[];
   author?: string;
   likes: number;
+  copyCount?: number;
   isFavorite: boolean;
+  isPremium?: boolean;
+  isUserCreated?: boolean;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  style?: 'Realistic' | 'Cinematic' | 'Anime' | 'Abstract' | 'Minimalist' | 'Professional' | 'Creative';
+  mood?: 'Vibrant' | 'Dark' | 'Elegant' | 'Professional' | 'Energetic';
   category: 'Coding' | 'Writing' | 'Art' | 'Marketing' | 'Academic' | 'Productivity';
-  tool: 'ChatGPT' | 'Midjourney' | 'Claude' | 'Gemini' | 'Stable Diffusion';
+  tool: 'ChatGPT' | 'Midjourney' | 'Claude' | 'Gemini' | 'Stable Diffusion' | 'Any';
+  createdAt?: string;
 }
 
 export interface ToastState {

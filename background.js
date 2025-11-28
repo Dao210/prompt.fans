@@ -7,5 +7,5 @@ chrome.sidePanel
 
 // 监听安装事件
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('prompt.fans extension installed');
+  console.log('nanobanana.fans extension installed');
 });

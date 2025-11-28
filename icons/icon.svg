@@ -1,0 +1,43 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="64" cy="64" r="64" fill="#FCD34D"/>
+  
+  <!-- Banana Shape (Stylized) -->
+  <path d="M 45 35 Q 38 40 35 48 Q 32 56 33 64 Q 34 72 38 80 Q 42 88 48 93 Q 58 100 70 98 Q 78 97 84 92 Q 88 88 90 82 Q 92 76 91 70 Q 90 64 87 58 Q 84 52 79 47 Q 72 40 63 38 Q 54 36 45 35 Z" fill="#FBBF24" stroke="#1F2937" stroke-width="2.5" stroke-linejoin="round"/>
+  
+  <!-- Banana Highlight -->
+  <path d="M 48 42 Q 52 40 58 40 Q 64 40 68 42 Q 70 43 71 45 Q 72 47 71 49 Q 70 51 67 52 Q 62 53 56 52 Q 50 51 47 48 Q 45 46 46 44 Q 47 42 48 42 Z" fill="#FEF3C7" opacity="0.8"/>
+  
+  <!-- AI Sparkle 1 (Top Right) -->
+  <g transform="translate(85, 28)">
+    <circle cx="0" cy="0" r="3" fill="#1F2937"/>
+    <line x1="0" y1="-6" x2="0" y2="6" stroke="#1F2937" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-6" y1="0" x2="6" y2="0" stroke="#1F2937" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  
+  <!-- AI Sparkle 2 (Bottom Left) -->
+  <g transform="translate(30, 95)">
+    <circle cx="0" cy="0" r="2.5" fill="#1F2937"/>
+    <line x1="0" y1="-5" x2="0" y2="5" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="-5" y1="0" x2="5" y2="0" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- AI Sparkle 3 (Right Side) -->
+  <g transform="translate(98, 70)">
+    <circle cx="0" cy="0" r="2" fill="#1F2937"/>
+    <line x1="0" y1="-4" x2="0" y2="4" stroke="#1F2937" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="-4" y1="0" x2="4" y2="0" stroke="#1F2937" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Nano Circuit Pattern (Subtle Tech Element) -->
+  <g opacity="0.3">
+    <circle cx="55" cy="65" r="1.5" fill="#1F2937"/>
+    <circle cx="62" cy="68" r="1.5" fill="#1F2937"/>
+    <circle cx="68" cy="72" r="1.5" fill="#1F2937"/>
+    <line x1="55" y1="65" x2="62" y2="68" stroke="#1F2937" stroke-width="1"/>
+    <line x1="62" y1="68" x2="68" y2="72" stroke="#1F2937" stroke-width="1"/>
+  </g>
+  
+  <!-- Outline for depth -->
+  <circle cx="64" cy="64" r="62" fill="none" stroke="#1F2937" stroke-width="3"/>
+</svg>

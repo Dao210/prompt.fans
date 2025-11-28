@@ -1,9 +1,8 @@
-import { EnvAdapter } from '../types';
 // Hybrid Adapter: Handles both Browser (Dev) and Chrome Extension (Prod) environments
-export const EnvAdapter = {
+export const envAdapter = {
     isExtension: () => typeof chrome !== 'undefined' && !!chrome.storage,
     getStorage: async (key, defaultVal) => {
-        if (EnvAdapter.isExtension()) {
+        if (envAdapter.isExtension()) {
             return new Promise((resolve) => {
                 chrome.storage.sync.get([key], (result) => {
                     resolve(result[key] !== undefined ? result[key] : defaultVal);
@@ -17,7 +16,7 @@ export const EnvAdapter = {
         }
     },
     setStorage: async (key, value) => {
-        if (EnvAdapter.isExtension()) {
+        if (envAdapter.isExtension()) {
             return new Promise((resolve) => {
                 chrome.storage.sync.set({ [key]: value }, () => resolve());
             });
@@ -28,7 +27,7 @@ export const EnvAdapter = {
         }
     },
     injectScript: async (text) => {
-        if (EnvAdapter.isExtension()) {
+        if (envAdapter.isExtension()) {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tab.id) {
                 chrome.scripting.executeScript({
@@ -46,7 +45,7 @@ export const EnvAdapter = {
                             el.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                         else {
-                            alert('Banana Prompts: Please click inside a text input field first!');
+                            alert('NanoBanana: Please click inside a text input field first!');
                         }
                     },
                     args: [text]

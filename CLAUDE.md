@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-prompt.fans is a Chrome extension that serves as an AI prompt manager for ChatGPT, Claude, and Gemini. Built with React 19, TypeScript, and Vite, it provides a side-panel interface for managing and injecting prompts into AI tools.
+nanobanana.fans is a Chrome extension that serves as an AI prompt manager for ChatGPT, Claude, and Gemini. Built with React 19, TypeScript, and Vite, it provides a side-panel interface for managing and injecting prompts into AI tools.
 
 
 

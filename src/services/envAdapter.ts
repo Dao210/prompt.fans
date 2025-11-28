@@ -1,11 +1,11 @@
-import { EnvAdapter } from '../types';
+import type { EnvAdapter } from '../types';
 
 // Hybrid Adapter: Handles both Browser (Dev) and Chrome Extension (Prod) environments
-export const EnvAdapter: EnvAdapter = {
+export const envAdapter: EnvAdapter = {
   isExtension: () => typeof chrome !== 'undefined' && !!chrome.storage,
 
   getStorage: async (key: string, defaultVal: any) => {
-    if (EnvAdapter.isExtension()) {
+    if (envAdapter.isExtension()) {
       return new Promise((resolve) => {
         chrome.storage.sync.get([key], (result: any) => {
           resolve(result[key] !== undefined ? result[key] : defaultVal);
@@ -19,7 +19,7 @@ export const EnvAdapter: EnvAdapter = {
   },
 
   setStorage: async (key: string, value: any) => {
-    if (EnvAdapter.isExtension()) {
+    if (envAdapter.isExtension()) {
       return new Promise<void>((resolve) => {
         chrome.storage.sync.set({ [key]: value }, () => resolve());
       });
@@ -30,7 +30,7 @@ export const EnvAdapter: EnvAdapter = {
   },
 
   injectScript: async (text: string) => {
-    if (EnvAdapter.isExtension()) {
+    if (envAdapter.isExtension()) {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
         chrome.scripting.executeScript({
@@ -47,7 +47,7 @@ export const EnvAdapter: EnvAdapter = {
               el.value = before + code + after;
               el.dispatchEvent(new Event('input', { bubbles: true }));
             } else {
-              alert('Banana Prompts: Please click inside a text input field first!');
+              alert('NanoBanana: Please click inside a text input field first!');
             }
           },
           args: [text]
